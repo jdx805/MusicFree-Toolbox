@@ -62,9 +62,22 @@ BACKUP_ROOT = os.path.join(_base_dir(), '歌词缓存备份')
 RUN_TS = time.strftime('%Y%m%d-%H%M%S')
 
 
+# Windows 下 subprocess 默认会给每个子进程新开控制台窗口，在 GUI 里表现为黑窗一闪而过。
+# 一次同步会调十几次 adb，必须彻底隐藏：creationflags + startupinfo 双保险。
+_NO_WINDOW = 0
+_STARTUPINFO = None
+if os.name == 'nt':
+    _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0x08000000)
+    _STARTUPINFO = subprocess.STARTUPINFO()
+    _STARTUPINFO.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    _STARTUPINFO.wShowWindow = subprocess.SW_HIDE
+
+
 def _run(*args, timeout=60):
-    """执行 adb 命令，返回 (returncode, stdout, stderr)，统一 UTF-8。"""
-    p = subprocess.run([ADB] + list(args), capture_output=True, timeout=timeout)
+    """执行 adb 命令，返回 (returncode, stdout, stderr)，统一 UTF-8。
+    Windows 下隐藏子进程控制台窗口，避免界面里黑窗闪烁。"""
+    p = subprocess.run([ADB] + list(args), capture_output=True, timeout=timeout,
+                       creationflags=_NO_WINDOW, startupinfo=_STARTUPINFO)
     dec = lambda b: b.decode('utf-8', 'replace').replace('\r', '')
     return p.returncode, dec(p.stdout), dec(p.stderr)
 
