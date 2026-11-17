@@ -52,7 +52,7 @@
 python music_toolbox.py
 ```
 
-Windows 下也可双击对应的 `.bat` 单独启动某一个工具。
+Windows 下直接双击 `启动音乐工具箱.bat`——三个工具都在同一个窗口的三个页签里。
 
 ### 首次使用
 
