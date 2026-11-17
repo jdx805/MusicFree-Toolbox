@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# PyInstaller 构建中间件与产物（exe 只在本地，不入库）
+build/
+dist/
+*.spec
+__pycache__/
+
+# 个人数据与运行时产物（不随仓库分发）
+_mmkv_tmp_*/
+_mf_cache_analy/
+体检报告/
+*.sqlite3
+_qq_playlist_*.json
+_bili_match_result_*.json
+_lyrics_cache_*.json
+_qq_lyric_*.json
+_qq_lyric_*.txt
+
+# 本机路径配置（含个人目录，不入库；模板见 *.example）
+_embed_gui_config.json
+_offset_gui_config.json
