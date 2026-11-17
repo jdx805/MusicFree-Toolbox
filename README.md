@@ -75,8 +75,21 @@ Windows 下直接双击 `启动音乐工具箱.bat`——三个工具都在同�
 | Python 3.9+ | exe 版本已内置，无需安装 |
 | tkinter | Python 标准库，随 Python 安装 |
 | 第三方 pip 包 | **无** |
-| adb | 仅「同步到手机」功能需要；需手机开启 USB 调试 |
+| adb | 仅「同步到手机」功能需要；需手机开启 USB 调试，**查找规则见下** |
 | ffmpeg | 仅人工修复畸形音频时用到，工具运行不依赖 |
+
+### adb 路径
+
+程序不会四处搜 adb，规则是固定的（`musicfree_sync.py` 的 `_find_adb()`）：
+
+| 运行形态 | 查找顺序 |
+|---|---|
+| 源码（`python music_toolbox.py`） | **只用** `D:\Program Files\platform-tools\adb.exe`，不搜 PATH |
+| 打包 exe | ① exe 同目录的 `adb.exe` → ② PATH 里的 `adb` → ③ 兜底 `D:\Program Files\platform-tools\adb.exe` |
+
+源码态这条路径是**硬编码**的：换机器或 platform-tools 装在别处，必须改 `musicfree_sync.py` 第 40 行，否则「同步到手机」会提示 `adb 不存在: D:\Program Files\platform-tools\adb.exe`。
+
+用 exe 则不必改代码：把 `adb.exe` 连同 `AdbWinApi.dll`、`AdbWinUsbApi.dll` 放到 exe 旁边即可。
 
 ## 关键判据
 
@@ -136,7 +149,7 @@ pyinstaller -w -F --clean -n "音乐工具箱" music_toolbox.py
 产物在 `dist/音乐工具箱.exe`，约 10 MB。打包后：
 
 1. 把 `_check_ignore.json` 复制到 exe 同目录（体检忽略名单）
-2. 如需「同步到手机」，把 `adb.exe` 也放到 exe 同目录（或加入 PATH）
+2. 如需「同步到手机」，把 `adb.exe` 连同 `AdbWinApi.dll`、`AdbWinUsbApi.dll` 一起放到 exe 同目录（或把 platform-tools 加入 PATH）
 
 单文件模式首次启动会有 1–2 秒解压，属正常现象。配置与体检报告会写在 **exe 所在目录**，不会写入临时目录。
 
