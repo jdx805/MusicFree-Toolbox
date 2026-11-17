@@ -56,15 +56,7 @@ Windows 下直接双击 `启动音乐工具箱.bat`——三个工具都在同�
 
 ### 首次使用
 
-把 `_embed_gui_config.json.example` / `_offset_gui_config.json.example` 复制一份、去掉 `.example` 后缀，改成自己的目录：
-
-```json
-{
-  "folder": "D:\\Music\\BiliTools",
-  "out": "D:\\Music\\BiliTools_嵌词",
-  "phone": "/sdcard/MusicFree/"
-}
-```
+不需要手工建配置文件——界面里选一次文件夹、另存目录、手机目录，退出时自动记住，写在 `%APPDATA%\MusicFree工具箱\config.json`。
 
 不复制也能用，程序会用内置默认值，并在你第一次选完路径后自动保存。
 
@@ -128,8 +120,7 @@ MusicFree 的本地库记录（MMKV `musicByPath`）若 `duration=0`、`artist` 
 ├── lyric_embed_core.py      # 歌词搜索/拉取/写入核心
 ├── lyric_offset_tool.py     # MP3/FLAC 标签读写与时间戳平移核心
 ├── musicfree_sync.py        # adb 同步、缓存清理、强停重启
-├── _embed_gui_config.json   # 内嵌页配置（路径记忆）
-├── _offset_gui_config.json  # 偏移页配置
+├── toolbox_config.py        # 统一配置读写（存 %APPDATA%，不落程序目录）
 ├── _check_ignore.json       # 体检忽略名单（纯音乐）
 ├── 启动音乐工具箱.bat        # 一键启动
 ├── 音乐工具箱-使用说明.md
@@ -138,6 +129,25 @@ MusicFree 的本地库记录（MMKV `musicByPath`）若 `duration=0`、`artist` 
 ├── 音乐入库前体检-使用说明.md
 └── 体检报告/                 # 体检输出
 ```
+
+### 配置存在哪里
+
+路径记忆（文件夹 / 另存目录 / 手机目录）写在：
+
+```
+%APPDATA%\MusicFree工具箱\config.json
+```
+
+一个文件两节，`embed` 对应页签①，`offset` 对应页签②：
+
+```json
+{
+  "embed":  {"folder": "...", "out": "...", "phone": "/sdcard/MusicFree/"},
+  "offset": {"folder": "...", "out": "...", "phone": "/sdcard/Music/"}
+}
+```
+
+所以 exe 拷到任何目录都不会在它旁边生成配置文件。早期版本留下的 `_embed_gui_config.json`、`_offset_gui_config.json` 会在首次读取时自动迁入新文件，旧文件不再写入，可直接删除。
 
 ## 本地打包 exe
 
@@ -153,7 +163,7 @@ pyinstaller -w -F --clean -n "音乐工具箱" music_toolbox.py
 1. 把 `_check_ignore.json` 复制到 exe 同目录（体检忽略名单）
 2. 如需「同步到手机」，把 `adb.exe` 连同 `AdbWinApi.dll`、`AdbWinUsbApi.dll` 一起放到 exe 同目录（或把 platform-tools 加入 PATH）
 
-单文件模式首次启动会有 1–2 秒解压，属正常现象。配置与体检报告会写在 **exe 所在目录**，不会写入临时目录。
+单文件模式首次启动会有 1–2 秒解压，属正常现象。**路径设置写在 `%APPDATA%\MusicFree工具箱\config.json`**（不在 exe 旁边）；体检报告仍写在 exe 所在目录的 `体检报告\`。
 
 ## 说明
 

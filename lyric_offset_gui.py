@@ -19,30 +19,23 @@ from tkinter import ttk, filedialog, messagebox, scrolledtext
 
 import lyric_offset_tool as core
 import musicfree_sync as sync
+import toolbox_config
 
 FONT = ('Microsoft YaHei', 10)
 DEFAULT_OUT_DIR = r'D:\Users\Downloads\Recive\BiliTools_改时间戳'
-CFG_PATH = os.path.join(os.path.dirname(sys.executable) if getattr(sys, 'frozen', False)
-                        else os.path.dirname(os.path.abspath(__file__)), '_offset_gui_config.json')
 
 
 def load_cfg():
     """读取上次保存的三个路径；缺项用默认值。"""
-    cfg = {'folder': core.DEFAULT_FOLDER, 'out': DEFAULT_OUT_DIR, 'phone': sync.DEFAULT_PHONE_DIR}
-    try:
-        if os.path.exists(CFG_PATH):
-            cfg.update(json.load(open(CFG_PATH, encoding='utf-8')))
-    except Exception:
-        pass
-    return cfg
+    return toolbox_config.load('offset', {
+        'folder': core.DEFAULT_FOLDER,
+        'out': DEFAULT_OUT_DIR,
+        'phone': sync.DEFAULT_PHONE_DIR,
+    })
 
 
 def save_cfg(folder, out, phone):
-    try:
-        json.dump({'folder': folder, 'out': out, 'phone': phone},
-                  open(CFG_PATH, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
-    except Exception:
-        pass
+    toolbox_config.save('offset', {'folder': folder, 'out': out, 'phone': phone})
 
 
 class App:

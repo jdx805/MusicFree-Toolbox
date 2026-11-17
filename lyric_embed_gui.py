@@ -4,31 +4,25 @@
 流程：选文件夹→选歌→搜索候选(QQ/LRCLIB)→人工点选版本→预览→内嵌(另存,源文件不动)→同步到手机。
 复用 lyric_embed_core(获取+写入) / musicfree_sync(推送+缓存+强停重启) / 现有路径配置。
 """
-import os, sys, json, threading
+import os, sys, threading
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 
 import lyric_embed_core as core
 import musicfree_sync as sync
 import lyric_offset_tool as base
+import toolbox_config
 
 FONT = ('Microsoft YaHei', 10)
-CFG_PATH = os.path.join(os.path.dirname(sys.executable) if getattr(sys, 'frozen', False)
-                        else os.path.dirname(os.path.abspath(__file__)), '_embed_gui_config.json')
 DEFAULT_OUT_DIR = r'D:\Users\Downloads\Recive\BiliTools_嵌词'
 
 
 def load_cfg():
-    try:
-        return json.load(open(CFG_PATH, encoding='utf-8'))
-    except Exception:
-        return {}
+    return toolbox_config.load('embed')
 
 
 def save_cfg(folder, out, phone):
-    d = load_cfg()
-    d.update({'folder': folder, 'out': out, 'phone': phone})
-    json.dump(d, open(CFG_PATH, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
+    toolbox_config.save('embed', {'folder': folder, 'out': out, 'phone': phone})
 
 
 class App:
