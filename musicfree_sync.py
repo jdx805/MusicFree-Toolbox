@@ -186,11 +186,37 @@ def force_stop():
 
 
 def restart_app():
-    """拉起 MusicFree 到前台。用 monkey 按包名启动，跨版本不需知道入口 Activity。"""
-    rc, out, err = _run('shell', 'monkey -p %s -c android.intent.category.LAUNCHER 1' % PACKAGE)
-    return (rc == 0 and 'Events injected' in out,
-            '已启动 %s' % PACKAGE if rc == 0 and 'Events injected' in out
-            else '启动失败: ' + ((err or out).strip() or 'rc=%d' % rc))
+    """拉起 MusicFree 到前台。返回 (ok, msg)。
+
+    必须用 `am start` 显式启动入口 Activity，绝不能用 monkey：
+    monkey 会在系统里注册一个名为 'Monkey touch' 的虚拟触摸设备，触发
+    WindowManager 的「Display reconfigured」，ColorOS 的旋转锁逻辑
+    （OplusRotationLockTile）会顺势把 accelerometer_rotation 写成 1，
+    表现为「每次同步完成后手机的自动旋转被悄悄打开」。
+    2026-11-18 01:58 logcat 实证：
+      EventHub: New device id=25 name='Monkey touch' classes=TOUCH
+      WindowManager: Display reconfigured outside of a transition
+      SettingsProvider: notifyForSettingsChange ... accelerometer_rotation, value: 1
+    """
+    rc, out, err = _run('shell', 'am start -n %s/.MainActivity' % PACKAGE)
+    if rc == 0 and 'Error' not in (out + err):
+        return True, '已启动 ' + PACKAGE
+
+    # 入口 Activity 万一改名：动态解析一次再启动（仍不用 monkey）
+    rc2, out2, _ = _run('shell', 'cmd package resolve-activity --brief '
+                                 '-c android.intent.category.LAUNCHER %s' % PACKAGE)
+    comp = ''
+    if rc2 == 0:
+        for line in out2.splitlines():
+            s = line.strip()
+            if '/' in s and ' ' not in s:
+                comp = s
+    if comp:
+        rc3, out3, err3 = _run('shell', 'am start -n %s' % comp)
+        if rc3 == 0 and 'Error' not in (out3 + err3):
+            return True, '已启动 %s（解析入口）' % comp
+        err = err3 or out3
+    return False, '启动失败: ' + ((err or out).strip() or 'rc=%d' % rc)
 
 
 def push_files(local_paths, phone_dir):

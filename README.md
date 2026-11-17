@@ -109,6 +109,11 @@ MusicFree 的本地库记录（MMKV `musicByPath`）若 `duration=0`、`artist` 
 **5. 时间戳偏移方向容易搞反。**
 本工具约定：**正数＝歌词提前（变快），负数＝延后（变慢）**。
 
+**6. 不要用 `monkey` 启动 App——它会顺手把自动旋转打开。**
+`monkey -p <包名> -c android.intent.category.LAUNCHER 1` 会在系统里注册一个名为 `Monkey touch` 的虚拟触摸设备，触发 WindowManager 的「Display reconfigured」，ColorOS 的旋转锁（`OplusRotationLockTile`）随之把 `accelerometer_rotation` 写成 1。
+logcat 判据（按时间顺序，间隔约 40 ms）：`New device … 'Monkey touch'` → `Display reconfigured outside of a transition` → `notifyForSettingsChange … accelerometer_rotation, value: 1`。
+本工具重启 MusicFree 一律用 `am start -n <包名>/.MainActivity`，不创建虚拟输入设备，无此副作用。
+
 ## 目录结构
 
 ```
