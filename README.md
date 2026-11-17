@@ -43,20 +43,30 @@
 
 ## 快速开始
 
-### 方式一：直接运行 exe（推荐）
+本仓库**只提供脚本**，不包含打包好的 exe；需要 exe 请按文末「本地打包 exe」自行生成。
 
-1. 下载 `音乐工具箱.exe`
-2. 双击运行
-3. 如需「同步到手机」，把 `adb.exe` 放到 exe 同目录
-
-### 方式二：源码运行
+### 源码运行（推荐）
 
 ```bash
 # 依赖：Python 3.9+（实测 3.13），无任何第三方 pip 包
 python music_toolbox.py
 ```
 
-Windows 下也可双击对应 `.bat` 单独启动某一个工具。
+Windows 下也可双击对应的 `.bat` 单独启动某一个工具。
+
+### 首次使用
+
+把 `_embed_gui_config.json.example` / `_offset_gui_config.json.example` 复制一份、去掉 `.example` 后缀，改成自己的目录：
+
+```json
+{
+  "folder": "D:\\Music\\BiliTools",
+  "out": "D:\\Music\\BiliTools_嵌词",
+  "phone": "/sdcard/MusicFree/"
+}
+```
+
+不复制也能用，程序会用内置默认值，并在你第一次选完路径后自动保存。
 
 ## 依赖
 
@@ -114,14 +124,21 @@ MusicFree 的本地库记录（MMKV `musicByPath`）若 `duration=0`、`artist` 
 └── 体检报告/                 # 体检输出
 ```
 
-## 自己打包 exe
+## 本地打包 exe
+
+仓库不提交二进制产物，需要时自己在本地生成：
 
 ```bash
 pip install pyinstaller
 pyinstaller -w -F --clean -n "音乐工具箱" music_toolbox.py
 ```
 
-产物在 `dist/音乐工具箱.exe`。单文件模式首次启动会有 1–2 秒解压，属正常现象。
+产物在 `dist/音乐工具箱.exe`，约 10 MB。打包后：
+
+1. 把 `_check_ignore.json` 复制到 exe 同目录（体检忽略名单）
+2. 如需「同步到手机」，把 `adb.exe` 也放到 exe 同目录（或加入 PATH）
+
+单文件模式首次启动会有 1–2 秒解压，属正常现象。配置与体检报告会写在 **exe 所在目录**，不会写入临时目录。
 
 ## 说明
 
