@@ -346,7 +346,7 @@ class App:
         phone_dir = self.var_phone.get().strip() or sync.DEFAULT_PHONE_DIR
         do_post = self.var_post.get()
         steps = ('将执行：\n1) push %d 个文件到 %s\n'
-                 '2) 按歌词内容定位并覆盖对应歌词缓存\n3) 校验 MD5 + 缓存回读'
+                 '2) 按歌词内容定位并删除对应歌词缓存（先备份到本地）\n3) 校验 MD5 + 删除确认'
                  % (len(files), phone_dir))
         if do_post:
             steps += '\n4) 全部成功后强制停止并重启 MusicFree'
@@ -367,7 +367,7 @@ class App:
             r = sync.sync_cache_for(p)
             self._log('  缓存 %-34s %s' % (
                 os.path.basename(p),
-                ('已覆盖' if r['found'] else ('无需(新歌)' if not r['need'] else '失败')) + ' : ' + (r['msg'] or '-')))
+                ('已删缓存' if r['found'] else ('无需(新歌)' if not r['need'] else '失败')) + ' : ' + (r['msg'] or '-')))
             if r['need'] and not r['found']:
                 cache_fail += 1
 

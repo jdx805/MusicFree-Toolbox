@@ -340,7 +340,7 @@ class App:
         self._log('\n另存完成：成功 %d，失败 %d。需要推到手机请点「同步到手机」。' % (ok_n, fail_n))
 
     def sync_phone(self):
-        """独立同步按钮：校验 adb -> push 另存文件 -> 按内容定位并覆盖缓存 -> 汇总。"""
+        """独立同步按钮：校验 adb -> push 另存文件 -> 按内容定位并删除缓存 -> 汇总。"""
         ok, info = sync.check_device()
         if not ok:
             messagebox.showerror('设备检查失败', info)
@@ -352,8 +352,8 @@ class App:
             return
         phone_dir = self.var_phone.get().strip() or sync.DEFAULT_PHONE_DIR
         do_restart = self.var_post_restart.get()
-        steps = ('将执行：\n1) push %d 个文件到手机 %s\n2) 按歌词内容定位并覆盖对应歌词缓存\n'
-                 '3) 校验 MD5 + 缓存回读' % (len(files), phone_dir))
+        steps = ('将执行：\n1) push %d 个文件到手机 %s\n2) 按歌词内容定位并删除对应歌词缓存（先备份到本地）\n'
+                 '3) 校验 MD5 + 删除确认' % (len(files), phone_dir))
         if do_restart:
             steps += '\n4) 全部成功后强制停止并重启 MusicFree'
         steps += '\n\n设备 %s\n确定吗？' % info

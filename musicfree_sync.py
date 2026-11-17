@@ -5,14 +5,16 @@ MusicFree 手机同步模块（供 lyric_offset_gui.py 调用）
 
 职责：
   1. 把改后文件 push 到手机音乐目录
-  2. 遍历手机 lyric/cache，按歌词内容定位目标缓存，用改后内嵌歌词覆盖 rawLrc
-  3. 双重校验（push 文件 MD5、缓存内容回读）
+  2. 遍历手机 lyric/cache，按歌词内容定位目标缓存，**备份到本地后删除**该缓存
+  3. 双重校验（push 文件 MD5、删除后确认缓存已不存在）
 
 设计要点（脱离 AI 的关键）：
   - 缓存按「歌词正文文字」匹配，不依赖 sha256 文件名 → 换手机哈希变了也能定位
-  - 覆盖缓存而非删除 → 避免 App 从在线源拉回旧词
+  - 删除而非覆盖：实测（2026-11-17）缓存缺失时 App 用文件内嵌重建，新缓存 rawLrc 与内嵌 MD5 全等
+    → 删除更简单，且不必构造 json；前提是文件内嵌已是正确版本，内嵌为空则删后无词
+  - 删除前先 pull 到本地「歌词缓存备份/时间戳/」，可回滚
   - 新机无缓存时不报错，提示「首次播放会生成新缓存」即可
-  - 全部只读 adb 采集 + 显式 push，不做界面点击
+  - 全部只读 adb 采集 + 显式 push/删除，不做界面点击
 
 不依赖 lyric_offset_tool 以外的第三方库。
 """
@@ -20,6 +22,7 @@ import os
 import re
 import sys
 import json
+import time
 import hashlib
 import subprocess
 import tempfile
@@ -45,6 +48,18 @@ DEFAULT_PHONE_DIR = '/sdcard/Music/'
 PACKAGE = 'fun.upup.musicfree'
 CACHE_DIR = '/sdcard/Android/data/%s/files/lyric/cache' % PACKAGE
 TS = core.TS_RE
+
+
+def _base_dir():
+    """配置/备份的落点：打包态用 exe 所在目录，源码态用脚本所在目录。"""
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+# 删除缓存前的本地备份根目录；每次进程启动一个时间戳子目录
+BACKUP_ROOT = os.path.join(_base_dir(), '歌词缓存备份')
+RUN_TS = time.strftime('%Y%m%d-%H%M%S')
 
 
 def _run(*args, timeout=60):
@@ -123,25 +138,32 @@ def _cache_read(name):
             pass
 
 
-def _cache_write(name, raw_lrc):
-    """用新 rawLrc 覆盖手机缓存：写临时 json -> push -> 回读校验。"""
-    fd, tmp = tempfile.mkstemp(suffix='.json')
-    os.close(fd)
+def _cache_delete(name):
+    """先备份到本地，再删除手机缓存；App 下次播放会从文件内嵌重建。
+    返回 (ok, msg)。删除后回读目录确认真的不存在。
+    """
+    # 1) 备份（失败也继续删，但会在 msg 里标出来）
+    backed = False
     try:
-        with open(tmp, 'w', encoding='utf-8') as f:
-            json.dump({'rawLrc': raw_lrc}, f, ensure_ascii=False)
-        rc, out, err = _run('push', tmp, '%s/%s' % (CACHE_DIR, name))
-        if rc != 0:
-            return False, 'push 失败: ' + (err or out).strip()
-        back = _cache_read(name)
-        if back != raw_lrc:
-            return False, '回读不一致'
-        return True, 'OK'
-    finally:
-        try:
-            os.remove(tmp)
-        except OSError:
-            pass
+        d = os.path.join(BACKUP_ROOT, RUN_TS)
+        os.makedirs(d, exist_ok=True)
+        rc, out, err = _run('pull', '%s/%s' % (CACHE_DIR, name), os.path.join(d, name))
+        backed = (rc == 0)
+    except Exception:
+        backed = False
+
+    # 2) 删除：普通 shell 先试，权限不足再用 su 兜底
+    rc, out, err = _run('shell', 'rm -f "%s/%s"' % (CACHE_DIR, name))
+    if rc != 0:
+        _run('shell', 'su -c "rm -f \'%s/%s\'"' % (CACHE_DIR, name))
+
+    # 3) 回读确认
+    names, lerr = _cache_list()
+    if lerr:
+        return False, '删除后无法确认: ' + lerr
+    if name in names:
+        return False, '删除失败（缓存仍在，可能缺写权限）'
+    return True, '已删除' + ('（已备份）' if backed else '（备份失败）')
 
 
 def force_stop():
@@ -183,9 +205,9 @@ def push_files(local_paths, phone_dir):
 
 
 def sync_cache_for(local_path):
-    """为单个改后文件定位并覆盖手机缓存。
+    """为单个改后文件定位并删除手机缓存（备份后删除，App 下次播放从内嵌重建）。
     返回 dict: found / need / ok / msg / cache_name
-      - found: 找到缓存并已覆盖
+      - found: 找到缓存并已删除
       - need=False: 手机没有对应缓存（首次播放会生成新缓存），非错误
     """
     r = {'file': os.path.basename(local_path), 'found': False, 'need': False,
@@ -201,26 +223,29 @@ def sync_cache_for(local_path):
     if err:
         r['msg'] = err
         return r
-    best = None
+    strict, loose = [], []
     for name in names:
         raw = _cache_read(name)
         if not raw:
             continue
         # 严格：去时间戳后文字完全一致；宽松：前 12 句正文一致
         if _norm(raw) == new_norm:
-            best = (name, raw, 'strict')
-            break
-        if _lyric_texts(raw)[:12] == new_texts[:12] and new_texts:
-            best = (name, raw, 'text')
-    if best is None:
+            strict.append(name)
+        elif new_texts and _lyric_texts(raw)[:12] == new_texts[:12]:
+            loose.append(name)
+    targets, how = (strict, '严格') if strict else (loose, '正文')
+    if not targets:
         r['need'] = False
         r['msg'] = '手机无对应歌词缓存（首次播放会从内嵌生成新缓存，无需处理）'
         return r
-    name, _, how = best
     r['found'] = True
     r['need'] = True
-    r['cache_name'] = name
-    ok, msg = _cache_write(name, new_lrc)
-    r['ok'] = ok
-    r['msg'] = '%s匹配 %s -> %s' % ('严格' if how == 'strict' else '正文', name[:12], msg)
+    r['cache_name'] = targets[0]
+    msgs, all_ok = [], True
+    for name in targets:
+        ok, msg = _cache_delete(name)
+        all_ok = all_ok and ok
+        msgs.append('%s %s' % (name[:12], msg))
+    r['ok'] = all_ok
+    r['msg'] = '%s匹配 %d 条 -> %s' % (how, len(targets), '；'.join(msgs))
     return r

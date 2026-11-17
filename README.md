@@ -112,6 +112,8 @@ MusicFree 的本地库记录（MMKV `musicByPath`）若 `duration=0`、`artist` 
 `/sdcard/Android/data/fun.upup.musicfree/files/lyric/cache/`
 缓存文件名是哈希，无法从歌名推断，只能按歌词正文内容定位。
 
+**这条缓存可以直接删。** 实测（2026-11-17）：某首歌缓存缺失时播放，App 会用**文件内嵌**重建缓存，新缓存 `rawLrc` 与内嵌 MD5 完全一致（当时手机在线，排除离线偏置）。所以处理旧词的正确做法是「删缓存让它重建」，而不是改缓存内容——前提是文件内嵌已经是正确版本；内嵌为空则删完仍无词。
+
 **5. 时间戳偏移方向容易搞反。**
 本工具约定：**正数＝歌词提前（变快），负数＝延后（变慢）**。
 
@@ -125,7 +127,7 @@ MusicFree 的本地库记录（MMKV `musicByPath`）若 `duration=0`、`artist` 
 ├── musicfree_check.py       # 页签③：入库体检
 ├── lyric_embed_core.py      # 歌词搜索/拉取/写入核心
 ├── lyric_offset_tool.py     # MP3/FLAC 标签读写与时间戳平移核心
-├── musicfree_sync.py        # adb 同步、缓存覆盖、强停重启
+├── musicfree_sync.py        # adb 同步、缓存清理、强停重启
 ├── _embed_gui_config.json   # 内嵌页配置（路径记忆）
 ├── _offset_gui_config.json  # 偏移页配置
 ├── _check_ignore.json       # 体检忽略名单（纯音乐）
